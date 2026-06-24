@@ -8,3 +8,4 @@ data/*.db
 trace/*.db
 .idea/
 .vscode/
+app_streamlit_old.py.bak
