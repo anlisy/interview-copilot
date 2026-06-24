@@ -9,3 +9,8 @@ trace/*.db
 .idea/
 .vscode/
 app_streamlit_old.py.bak
+*.bak
+*.bak2
+*.bak3
+*.bak4
+app_streamlit_old.py.bak

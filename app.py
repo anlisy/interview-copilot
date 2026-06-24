@@ -1,8 +1,4 @@
-"""Streamlit 前端：纯 UI 层，所有面试逻辑通过 HTTP 调用 FastAPI 后端。
-启动方式：
-  终端1: uvicorn api:app --reload --port 8000   (后端)
-  终端2: streamlit run app.py                    (前端)
-"""
+"""Streamlit 前端：纯 UI 层，所有面试逻辑通过 HTTP 调用 FastAPI 后端。"""
 import requests
 import streamlit as st
 from datetime import datetime
@@ -17,11 +13,9 @@ PRESETS = ["均衡型", "重项目型", "重八股型"]
 
 
 def strip_md_fence(text: str) -> str:
-    """剥掉 LLM 返回的 ```markdown ... ``` 外壳。"""
     t = text.strip()
     if t.startswith("```"):
-        lines = t.split("\n")
-        lines = lines[1:]
+        lines = t.split("\n")[1:]
         if lines and lines[-1].strip() == "```":
             lines = lines[:-1]
         return "\n".join(lines)
@@ -80,38 +74,58 @@ if page == "开始新面试":
         qs = s["questions"]
         cur = s["cur"]
         st.subheader(f"{s['company']} - {s['position']}")
-        st.progress(cur / len(qs), text=f"第 {cur+1}/{len(qs)} 题")
 
         if cur < len(qs):
+            st.progress(cur / len(qs), text=f"第 {cur+1}/{len(qs)} 题")
             q = qs[cur]
-            st.markdown(f"**【{q.get('type')}|{q.get('difficulty')}】** {q.get('question')}")
-            ans = st.text_area("你的回答", key=f"ans_{cur}", height=180)
 
-            if st.button("提交回答", type="primary"):
-                is_last = (cur == len(qs) - 1)
-                with st.spinner("面试官正在评分..."):
-                    resp = requests.post(f"{API}/api/interview/answer", json={
-                        "session_id": s["session_id"],
-                        "q_type": q.get("type"),
-                        "question": q.get("question"),
-                        "answer": ans,
-                        "is_last": is_last,
-                    }, timeout=120)
-                if resp.status_code != 200:
-                    st.error(f"评分失败：{resp.status_code} {resp.text}")
-                else:
-                    score = resp.json()["score"]   # dict
-                    s["answers"][cur] = ans
-                    s["scores"][cur] = score
-                    st.success(f"本题得分：{score['total']}/5")
-                    st.write(f"准确{score['accuracy']} 完整{score['completeness']} "
-                             f"深度{score['depth']} 表达{score['clarity']}")
-                    st.info(score['comment'])
+            # 显示题目
+            st.markdown(f"**【{q.get('type')}|{q.get('difficulty')}】** {q.get('question')}")
+
+            # 这一题是否已经答过并评分了？
+            already_scored = s["scores"][cur] is not None
+
+            if not already_scored:
+                # ===== 还没答：显示输入框 + 提交按钮 =====
+                ans = st.text_area("你的回答", key=f"ans_{cur}", height=180)
+                if st.button("提交回答", type="primary"):
+                    if not ans.strip():
+                        st.warning("请先输入回答")
+                    else:
+                        is_last = (cur == len(qs) - 1)
+                        with st.spinner("面试官正在评分..."):
+                            resp = requests.post(f"{API}/api/interview/answer", json={
+                                "session_id": s["session_id"],
+                                "q_type": q.get("type"),
+                                "question": q.get("question"),
+                                "answer": ans,
+                                "is_last": is_last,
+                            }, timeout=120)
+                        if resp.status_code != 200:
+                            st.error(f"评分失败：{resp.status_code} {resp.text}")
+                        else:
+                            score = resp.json()["score"]
+                            s["answers"][cur] = ans
+                            s["scores"][cur] = score
+                            st.session_state.session = s
+                            st.rerun()   # ← 关键：评分存好后重跑，进入"已评分"显示态
+            else:
+                # ===== 已答已评分：显示回答 + 评分 + 下一题按钮 =====
+                score = s["scores"][cur]
+                st.text_area("你的回答", value=s["answers"][cur], height=120,
+                             disabled=True, key=f"answered_{cur}")
+                st.success(f"本题得分：{score['total']}/5")
+                st.write(f"准确{score['accuracy']} 完整{score['completeness']} "
+                         f"深度{score['depth']} 表达{score['clarity']}")
+                st.info(score['comment'])
+                if st.button("下一题 ▶", type="primary"):
                     s["cur"] += 1
                     st.session_state.session = s
-                    st.button("下一题")
+                    st.rerun()   # ← 关键：推进后重跑，显示下一题
 
         else:
+            # ===== 所有题答完，生成复盘 =====
+            st.progress(1.0, text="面试完成")
             st.success("🎉 面试完成！")
             if "review" not in s:
                 qa_list = [
@@ -120,7 +134,7 @@ if page == "开始新面试":
                         "q_type": qs[i].get("type"),
                         "question": qs[i].get("question"),
                         "user_answer": s["answers"][i] or "",
-                        "score": s["scores"][i],   # 已是 dict
+                        "score": s["scores"][i],
                     }
                     for i in range(len(qs))
                 ]
@@ -159,6 +173,7 @@ if page == "开始新面试":
                         "finished_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     })
                     st.session_state.session = s
+                    st.rerun()
 
             if "review" in s:
                 st.metric("本场总分", f"{s['overall_score']}/5")
