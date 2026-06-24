@@ -1,8 +1,7 @@
 import json
-from core.llm import get_model
+from core.llm import generate_with_retry
 from core.config import ROOT
 from core.models import Score
-from smolagents import ChatMessage, MessageRole
 
 
 def _load_prompt(name: str) -> str:
@@ -10,7 +9,7 @@ def _load_prompt(name: str) -> str:
 
 
 def _extract_json(text: str) -> str:
-    text = text.strip()
+    text = (text or "").strip()
     if text.startswith("```"):
         parts = text.split("```")
         text = parts[1] if len(parts) > 1 else text
@@ -27,10 +26,7 @@ def score_answer(q_type: str, question: str, answer: str) -> Score:
     prompt = _load_prompt("scorer.txt").format(
         q_type=q_type, question=question, answer=answer
     )
-    model = get_model()
-    messages = [ChatMessage(role=MessageRole.USER, content=prompt)]
-    response = model.generate(messages)
-    text = _extract_json(response.content)
+    text = _extract_json(generate_with_retry(prompt))
 
     try:
         d = json.loads(text)
