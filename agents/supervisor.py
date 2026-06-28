@@ -49,3 +49,15 @@ class Supervisor:
         report = self.reviewer.review(position, qa_list)
         self._transit(InterviewState.FINISHED)
         return report
+
+    # ---------- 状态导出/恢复（用于 Redis 持久化）----------
+    def dump_state(self) -> str:
+        """导出当前状态为字符串（存入 Redis）。"""
+        return self.state.value
+
+    @classmethod
+    def from_state(cls, state_value: str) -> "Supervisor":
+        """从状态字符串恢复一个 Supervisor（Agent 重新创建，state 恢复）。"""
+        sup = cls()
+        sup.state = InterviewState(state_value)
+        return sup

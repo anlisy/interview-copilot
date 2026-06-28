@@ -51,10 +51,12 @@ def mock_agents(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def clean_sessions():
-    """每个测试前后清空会话，避免互相干扰。"""
-    session_manager._sessions.clear()
+    """每个测试前后给全局 session_manager 注入干净的内存存储，
+    避免依赖真实 Redis、避免测试间互相干扰。"""
+    from agents.session_manager import MemoryStore
+    session_manager._store = MemoryStore()
     yield
-    session_manager._sessions.clear()
+    session_manager._store = MemoryStore()
 
 
 # ---------- 测试用例 ----------

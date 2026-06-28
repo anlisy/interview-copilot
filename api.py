@@ -1,5 +1,7 @@
 """FastAPI 后端：所有面试流程通过 Supervisor 调度，按 session 维护状态。
-注意：文件名叫 api.py，避免和现有 Streamlit 的 app.py 冲突。
+
+L2-b 变化：会话状态存 Redis。Supervisor 是"借出-用完-归还"模式，
+每次操作后必须 session_manager.save() 把新状态写回，否则状态丢失。
 """
 from dataclasses import asdict
 from fastapi import FastAPI, HTTPException
@@ -8,9 +10,8 @@ from pydantic import BaseModel
 from core.models import QARecord, Score
 from agents.session_manager import session_manager
 
-app = FastAPI(title="Interview Copilot L2-a API")
+app = FastAPI(title="Interview Copilot L2-b API")
 
-# 题型预设（从 Streamlit 搬过来）
 PRESETS = {
     "均衡型": {"RESUME_PROJECT": 30, "RESUME_INTERNSHIP": 15, "JAVA_BASIC": 20,
               "AI_BASIC": 20, "CODING": 10, "BEHAVIOR": 5},
@@ -51,7 +52,7 @@ class AnswerResp(BaseModel):
 class ReviewReq(BaseModel):
     session_id: str
     position: str
-    qa_list: list   # [{order, q_type, question, user_answer, score:{...}}, ...]
+    qa_list: list
 
 
 class ReviewResp(BaseModel):
@@ -66,6 +67,7 @@ def api_start(req: StartReq):
     sid = session_manager.create()
     sup = session_manager.get(sid)
     questions = sup.run_generate(req.resume, req.jd, req.total_questions, type_ratio)
+    session_manager.save(sid, sup)   # ← L2-b: 写回 Redis（state 已变为 ASKING）
     return StartResp(session_id=sid, state=sup.state.value, questions=questions)
 
 
@@ -79,7 +81,8 @@ def api_answer(req: AnswerReq):
     try:
         score = sup.run_score(req.q_type, req.question, req.answer, req.is_last)
     except RuntimeError as e:
-        raise HTTPException(status_code=409, detail=str(e))  # 非法状态流转
+        raise HTTPException(status_code=409, detail=str(e))
+    session_manager.save(req.session_id, sup)   # ← L2-b: 写回 Redis
     return AnswerResp(state=sup.state.value, score=asdict(score))
 
 
@@ -107,7 +110,7 @@ def api_review(req: ReviewReq):
         raise HTTPException(status_code=409, detail=str(e))
 
     resp = ReviewResp(state=sup.state.value, report=report)
-    session_manager.drop(req.session_id)
+    session_manager.drop(req.session_id)   # 复盘完成，清理会话
     return resp
 
 
