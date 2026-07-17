@@ -122,3 +122,60 @@ def api_state(sid: str):
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"session_id": sid, "state": sup.state.value}
+
+
+# ---------- L3-a: 支持追问的评分接口 ----------
+class Answer2Req(BaseModel):
+    session_id: str
+    q_type: str
+    question: str
+    answer: str
+    is_last: bool
+    is_followup: bool = False
+    followup_count: int = 0
+    max_followup: int = 2
+
+
+class Answer2Resp(BaseModel):
+    state: str
+    score: dict
+    need_followup: bool
+    followup_question: str | None
+    followup_reason: str
+    next_followup_count: int
+
+
+@app.post("/api/interview/answer2", response_model=Answer2Resp)
+def api_answer2(req: Answer2Req):
+    """评分 + 追问决策。支持主问题和追问两种回答。"""
+    try:
+        sup = session_manager.get(req.session_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    try:
+        q_type = "追问" if req.is_followup else req.q_type
+        score = sup.run_score_only(q_type, req.question, req.answer)
+        need, fq, reason = sup.decide_followup(
+            req.question, req.answer, asdict(score),
+            req.followup_count, req.max_followup
+        )
+        if need:
+            sup.go_followup()
+            next_count = req.followup_count + 1
+        else:
+            sup.go_next_or_finish(req.is_last)
+            next_count = 0
+    except RuntimeError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+    session_manager.save(req.session_id, sup)
+
+    return Answer2Resp(
+        state=sup.state.value,
+        score=asdict(score),
+        need_followup=need,
+        followup_question=fq,
+        followup_reason=reason,
+        next_followup_count=next_count,
+    )

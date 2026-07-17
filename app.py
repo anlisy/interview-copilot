@@ -1,4 +1,6 @@
-"""Streamlit 前端：纯 UI 层，所有面试逻辑通过 HTTP 调用 FastAPI 后端。"""
+"""Streamlit 前端：纯 UI 层，通过 HTTP 调用 FastAPI 后端。
+L3-a: 支持追问循环。回答输入抽象为 get_answer_input()，未来可接语音转文字。
+"""
 import requests
 import streamlit as st
 from datetime import datetime
@@ -10,6 +12,7 @@ st.set_page_config(page_title="Interview Copilot", page_icon="🎯", layout="wid
 db.init_db()
 
 PRESETS = ["均衡型", "重项目型", "重八股型"]
+MAX_FOLLOWUP = 2
 
 
 def strip_md_fence(text: str) -> str:
@@ -20,6 +23,11 @@ def strip_md_fence(text: str) -> str:
             lines = lines[:-1]
         return "\n".join(lines)
     return text
+
+
+def get_answer_input(label: str, key: str, height: int = 150) -> str:
+    """回答输入。当前为文字；未来接语音转文字只需在此加语音组件，下游零改动。"""
+    return st.text_area(label, key=key, height=height)
 
 
 page = st.sidebar.radio("导航", ["开始新面试", "历史记录"])
@@ -64,7 +72,10 @@ if page == "开始新面试":
                         "questions": qs,
                         "answers": [None] * len(qs),
                         "scores": [None] * len(qs),
+                        "followups": [[] for _ in qs],
                         "cur": 0,
+                        "followup_count": 0,
+                        "current_followup": None,
                         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     }
                     st.rerun()
@@ -78,53 +89,100 @@ if page == "开始新面试":
         if cur < len(qs):
             st.progress(cur / len(qs), text=f"第 {cur+1}/{len(qs)} 题")
             q = qs[cur]
-
-            # 显示题目
             st.markdown(f"**【{q.get('type')}|{q.get('difficulty')}】** {q.get('question')}")
 
-            # 这一题是否已经答过并评分了？
-            already_scored = s["scores"][cur] is not None
+            if s["answers"][cur]:
+                st.markdown(f"**你的回答**：{s['answers'][cur]}")
 
-            if not already_scored:
-                # ===== 还没答：显示输入框 + 提交按钮 =====
-                ans = st.text_area("你的回答", key=f"ans_{cur}", height=180)
-                if st.button("提交回答", type="primary"):
-                    if not ans.strip():
+            for fu in s["followups"][cur]:
+                st.markdown(f"> 🔁 **追问**：{fu['q']}")
+                st.markdown(f"> 　 你的回答：{fu['a']}")
+
+            in_followup = s["current_followup"] is not None
+            scored = s["scores"][cur] is not None
+
+            if in_followup:
+                # ===== 答追问态 =====
+                st.markdown(f"🔁 **追问**：{s['current_followup']}")
+                fu_ans = get_answer_input("你的追问回答", key=f"fu_{cur}_{s['followup_count']}")
+                if st.button("提交追问回答", type="primary"):
+                    if not fu_ans.strip():
                         st.warning("请先输入回答")
                     else:
                         is_last = (cur == len(qs) - 1)
-                        with st.spinner("面试官正在评分..."):
-                            resp = requests.post(f"{API}/api/interview/answer", json={
+                        with st.spinner("面试官思考中..."):
+                            resp = requests.post(f"{API}/api/interview/answer2", json={
                                 "session_id": s["session_id"],
                                 "q_type": q.get("type"),
-                                "question": q.get("question"),
-                                "answer": ans,
+                                "question": s["current_followup"],
+                                "answer": fu_ans,
                                 "is_last": is_last,
+                                "is_followup": True,
+                                "followup_count": s["followup_count"],
+                                "max_followup": MAX_FOLLOWUP,
                             }, timeout=120)
                         if resp.status_code != 200:
-                            st.error(f"评分失败：{resp.status_code} {resp.text}")
+                            st.error(f"失败：{resp.status_code} {resp.text}")
                         else:
-                            score = resp.json()["score"]
-                            s["answers"][cur] = ans
-                            s["scores"][cur] = score
+                            data = resp.json()
+                            s["followups"][cur].append({
+                                "q": s["current_followup"], "a": fu_ans,
+                            })
+                            if data["need_followup"]:
+                                s["current_followup"] = data["followup_question"]
+                                s["followup_count"] = data["next_followup_count"]
+                            else:
+                                s["current_followup"] = None
                             st.session_state.session = s
-                            st.rerun()   # ← 关键：评分存好后重跑，进入"已评分"显示态
-            else:
-                # ===== 已答已评分：显示回答 + 评分 + 下一题按钮 =====
+                            st.rerun()
+
+            elif scored:
+                # ===== 已评分态 =====
                 score = s["scores"][cur]
-                st.text_area("你的回答", value=s["answers"][cur], height=120,
-                             disabled=True, key=f"answered_{cur}")
                 st.success(f"本题得分：{score['total']}/5")
                 st.write(f"准确{score['accuracy']} 完整{score['completeness']} "
                          f"深度{score['depth']} 表达{score['clarity']}")
                 st.info(score['comment'])
                 if st.button("下一题 ▶", type="primary"):
                     s["cur"] += 1
+                    s["followup_count"] = 0
+                    s["current_followup"] = None
                     st.session_state.session = s
-                    st.rerun()   # ← 关键：推进后重跑，显示下一题
+                    st.rerun()
+
+            else:
+                # ===== 答主问题态 =====
+                ans = get_answer_input("你的回答", key=f"ans_{cur}", height=180)
+                if st.button("提交回答", type="primary"):
+                    if not ans.strip():
+                        st.warning("请先输入回答")
+                    else:
+                        is_last = (cur == len(qs) - 1)
+                        with st.spinner("面试官正在评分..."):
+                            resp = requests.post(f"{API}/api/interview/answer2", json={
+                                "session_id": s["session_id"],
+                                "q_type": q.get("type"),
+                                "question": q.get("question"),
+                                "answer": ans,
+                                "is_last": is_last,
+                                "is_followup": False,
+                                "followup_count": 0,
+                                "max_followup": MAX_FOLLOWUP,
+                            }, timeout=120)
+                        if resp.status_code != 200:
+                            st.error(f"评分失败：{resp.status_code} {resp.text}")
+                        else:
+                            data = resp.json()
+                            s["answers"][cur] = ans
+                            s["scores"][cur] = data["score"]
+                            if data["need_followup"]:
+                                s["current_followup"] = data["followup_question"]
+                                s["followup_count"] = data["next_followup_count"]
+                            st.session_state.session = s
+                            st.rerun()
 
         else:
-            # ===== 所有题答完，生成复盘 =====
+            # ===== 复盘 =====
             st.progress(1.0, text="面试完成")
             st.success("🎉 面试完成！")
             if "review" not in s:
@@ -163,7 +221,8 @@ if page == "开始新面试":
                         "qa_list": [
                             {"type": qs[i].get("type"), "question": qs[i].get("question"),
                              "answer": s["answers"][i] or "",
-                             "score": s["scores"][i]}
+                             "score": s["scores"][i],
+                             "followups": s["followups"][i]}
                             for i in range(len(qs))
                         ],
                         "status": "已完成",
@@ -181,7 +240,6 @@ if page == "开始新面试":
                 if st.button("结束并返回"):
                     del st.session_state.session
                     st.rerun()
-
 # ============ 页面2：历史记录 ============
 else:
     st.title("📋 历史面试记录")
@@ -196,8 +254,13 @@ else:
                 sc = qa.get("score")
                 st.markdown(f"**第{i}题 [{qa['type']}]** {qa['question']}")
                 st.write(f"回答：{qa['answer'] or '(未答)'}")
+                for fu in qa.get("followups", []):
+                    st.markdown(f"　🔁 追问：{fu['q']}")
+                    st.markdown(f"　　回答：{fu['a']}")
                 if sc:
                     st.caption(f"得分 {sc['total']}/5 | {sc['comment']}")
                 st.divider()
             st.markdown("### 复盘报告")
             st.markdown(full["review_report"])
+
+
