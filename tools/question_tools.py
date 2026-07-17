@@ -62,42 +62,42 @@ def _dedup(items: list, key: str) -> list:
 
 
 # ---------- 第一步：规划考察点 ----------
-def _plan_topics(resume, jd, total, type_ratio) -> list:
+def _plan_topics(resume, jd, total, type_ratio, model_id=None) -> list:
     prompt = _load_prompt("topic_planner.txt").format(
         resume=resume, jd=jd, n=total,
         type_distribution=_ratio_to_distribution(total, type_ratio),
     )
-    topics = _safe_json_load(generate_with_retry(prompt)) or []
+    topics = _safe_json_load(generate_with_retry(prompt, model_id=model_id)) or []
     # 对考察点本身去重（按 topic 文本）
     topics = _dedup(topics, "topic")
     return topics[:total]
 
 
 # ---------- 第二步：按考察点出题 ----------
-def _write_questions(resume, topics) -> list:
+def _write_questions(resume, topics, model_id=None) -> list:
     topics_str = "\n".join(
         f'- [{t.get("type")}] {t.get("topic")}' for t in topics
     )
     prompt = _load_prompt("question_writer.txt").format(
         resume=resume, topics=topics_str,
     )
-    questions = _safe_json_load(generate_with_retry(prompt)) or []
+    questions = _safe_json_load(generate_with_retry(prompt, model_id=model_id)) or []
     # 兜底：再去重一次（按 question 文本）
     questions = _dedup(questions, "question")
     return questions
 
 
 # ---------- 主入口 ----------
-def generate_questions(resume: str, jd: str, total: int, type_ratio: dict) -> list:
+def generate_questions(resume: str, jd: str, total: int, type_ratio: dict, model_id: str = None) -> list:
     # 第一步：规划
-    topics = _plan_topics(resume, jd, total, type_ratio)
+    topics = _plan_topics(resume, jd, total, type_ratio, model_id)
     if not topics:
         raise ValueError("出题失败：考察点规划阶段返回空")
     print(f"  📋 已规划 {len(topics)} 个考察点: "
           + " | ".join(t.get("topic", "?") for t in topics))
 
     # 第二步：出题
-    questions = _write_questions(resume, topics)
+    questions = _write_questions(resume, topics, model_id)
     if not questions:
         raise ValueError("出题失败：出题阶段返回空")
 

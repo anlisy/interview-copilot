@@ -6,8 +6,10 @@ from core.config import ZHIPU_API_KEY, ZHIPU_API_BASE, MODEL_ID
 @lru_cache(maxsize=4)
 def get_model(model_id: str = None):
     """获取 smolagents 模型实例（接智谱 GLM）"""
+    actual_id = model_id or MODEL_ID
+    print(f"  🤖 get_model: {actual_id}")   # L2-c: 确认路由生效
     return OpenAIServerModel(
-        model_id=model_id or MODEL_ID,
+        model_id=actual_id,
         api_base=ZHIPU_API_BASE,
         api_key=ZHIPU_API_KEY,
         max_tokens=2000,

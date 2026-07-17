@@ -18,7 +18,7 @@ def _extract_json(text: str) -> str:
     return text.strip()
 
 
-def score_answer(q_type: str, question: str, answer: str) -> Score:
+def score_answer(q_type: str, question: str, answer: str, model_id: str = None) -> Score:
     """对一道题的回答打分，返回 Score 对象"""
     if not answer or not answer.strip():
         return Score(0, 0, 0, 0, 0.0, "未作答。")
@@ -26,7 +26,7 @@ def score_answer(q_type: str, question: str, answer: str) -> Score:
     prompt = _load_prompt("scorer.txt").format(
         q_type=q_type, question=question, answer=answer
     )
-    text = _extract_json(generate_with_retry(prompt))
+    text = _extract_json(generate_with_retry(prompt, model_id=model_id))
 
     try:
         d = json.loads(text)

@@ -34,14 +34,14 @@ def mock_agents(monkeypatch):
     """把三个 Agent 调用的工具函数替换成假实现，避免调真实 LLM。"""
     from core.models import Score
 
-    def fake_generate_questions(resume, jd, total, type_ratio):
+    def fake_generate_questions(resume, jd, total, type_ratio, **kwargs):
         return FAKE_QUESTIONS[:total] if total <= len(FAKE_QUESTIONS) else FAKE_QUESTIONS
 
-    def fake_score_answer(q_type, question, answer):
+    def fake_score_answer(q_type, question, answer, **kwargs):
         return Score(accuracy=4, completeness=3, depth=4, clarity=3,
                      total=3.5, comment="测试评语")
 
-    def fake_generate_review(position, qa_list):
+    def fake_generate_review(position, qa_list, **kwargs):
         return "## 复盘报告\n这是测试复盘内容"
 
     monkeypatch.setattr("agents.interviewer.generate_questions", fake_generate_questions)
