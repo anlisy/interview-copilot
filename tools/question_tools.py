@@ -1,6 +1,7 @@
 import json
 from difflib import SequenceMatcher
 from core.llm import generate_with_retry
+from tools.knowledge_tools import search_knowledge
 from core.config import ROOT
 
 
@@ -74,15 +75,50 @@ def _plan_topics(resume, jd, total, type_ratio, model_id=None) -> list:
 
 
 # ---------- 第二步：按考察点出题 ----------
+# 题型 → 知识库分类的映射（None 表示不检索，贴合简历的题不用检索）
+_TYPE_TO_CATEGORY = {
+    "Java八股": "八股",
+    "AI应用八股": "八股",
+    "编程题": "算法",
+    "实习追问": "实习",
+    "项目追问": None,
+    "行为问题": None,
+}
+
+
+def _retrieve_reference(topic_type, topic_text) -> str:
+    """为八股/算法类考点检索知识库，返回参考题文本。
+    RAG 是增强项：检索为空或报错都降级为无参考，不影响出题。"""
+    category = _TYPE_TO_CATEGORY.get(topic_type)
+    if not category:
+        return ""
+    try:
+        refs = search_knowledge(topic_text, category=category, top_k=2)
+        if not refs:
+            return ""
+        lines = [f"  · {r['metadata'].get('question', '')}: {r['document'][:120]}"
+                 for r in refs]
+        return "\n".join(lines)
+    except Exception as e:
+        print(f"  ⚠️ 知识库检索失败({type(e).__name__})，降级为无参考")
+        return ""
+
+
 def _write_questions(resume, topics, model_id=None) -> list:
-    topics_str = "\n".join(
-        f'- [{t.get("type")}] {t.get("topic")}' for t in topics
-    )
+    # 为每个考点拼上检索到的参考题（八股/算法类才检索）
+    topic_lines = []
+    for t in topics:
+        line = f'- [{t.get("type")}] {t.get("topic")}'
+        ref = _retrieve_reference(t.get("type"), t.get("topic"))
+        if ref:
+            line += f'\n  参考真实题库（可基于此出题或改编）：\n{ref}'
+        topic_lines.append(line)
+    topics_str = "\n".join(topic_lines)
+
     prompt = _load_prompt("question_writer.txt").format(
         resume=resume, topics=topics_str,
     )
     questions = _safe_json_load(generate_with_retry(prompt, model_id=model_id)) or []
-    # 兜底：再去重一次（按 question 文本）
     questions = _dedup(questions, "question")
     return questions
 

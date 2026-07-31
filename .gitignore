@@ -14,3 +14,5 @@ app_streamlit_old.py.bak
 *.bak3
 *.bak4
 app_streamlit_old.py.bak
+data/chroma_db/
+data/knowledge/
