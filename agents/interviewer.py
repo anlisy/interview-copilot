@@ -1,10 +1,11 @@
-"""面试官 Agent：负责出题 + 追问决策。
-独立上下文，只看简历+JD和当前问答，不接触评分逻辑（评估隔离）。
-L2-c: 出题用强模型。L3-a: 新增追问决策能力（Agent 动态决策）。
+"""面试官 Agent：出题 + 追问决策 + 简历诊断。
+独立上下文，评估隔离。
+L2-c: 出题用强模型。L3-a: 追问决策。L3-d: 简历诊断(亮点/风险/追问预判)。
 """
 from agents.base import BaseAgent
 from tools.question_tools import generate_questions
 from tools.followup_tools import decide_followup
+from tools.diagnose_tools import diagnose_resume
 
 
 class InterviewerAgent(BaseAgent):
@@ -15,8 +16,9 @@ class InterviewerAgent(BaseAgent):
         return generate_questions(resume, jd, total, type_ratio, model_id=self.model_id)
 
     def decide_followup(self, question: str, answer: str, score: dict) -> dict:
-        """L3-a: 根据回答质量决策是否追问 + 生成追问。
-        返回 {"need_followup": bool, "reason": str, "followup_question": str|None}。
-        任何异常都由工具层兜底为"不追问"。
-        """
+        """L3-a: 决策是否追问 + 生成追问。"""
         return decide_followup(question, answer, score, model_id=self.model_id)
+
+    def diagnose(self, resume: str, jd: str) -> dict:
+        """L3-d: 面试官视角诊断简历，返回亮点/风险/追问预判/建议。"""
+        return diagnose_resume(resume, jd, model_id=self.model_id)

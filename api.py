@@ -205,3 +205,16 @@ def api_eval_prediction(req: EvalReq):
         hit_rate=r["hit_rate"], total=r["total"], hits=r["hits"],
         threshold=r["threshold"], details=r["details"],
     )
+
+
+# ---------- L3-d: 简历诊断 ----------
+class DiagnoseReq(BaseModel):
+    resume: str
+    jd: str
+
+
+@app.post("/api/interview/diagnose")
+def api_diagnose(req: DiagnoseReq):
+    """面试官视角诊断简历：亮点/风险/追问预判/建议。"""
+    from agents.interviewer import InterviewerAgent
+    return InterviewerAgent().diagnose(req.resume, req.jd)
