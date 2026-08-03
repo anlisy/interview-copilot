@@ -18,3 +18,4 @@ data/chroma_db/
 data/knowledge/
 *.bak*
 *.bak*
+data/eval_history.json

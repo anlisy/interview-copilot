@@ -6,6 +6,7 @@
 阈值 0.55 来自分数标定实验（相关题~0.6，无关题~0.3，边界~0.5）。
 """
 from tools.knowledge_tools import search_knowledge
+from tools.eval_history import record_eval
 
 HIT_THRESHOLD = 0.55   # 命中阈值（数据标定得出）
 
@@ -67,7 +68,7 @@ def evaluate_prediction(predicted_questions: list, threshold: float = HIT_THRESH
     }
 
 
-def run_prediction_eval(resume: str, jd: str, total: int = 8) -> dict:
+def run_prediction_eval(resume: str, jd: str, total: int = 8, note: str = "") -> dict:
     """完整的预测命中率评估流程：
     1. eval模式出题（不看面经，纯预测）
     2. 用面经库评估命中率
@@ -83,4 +84,9 @@ def run_prediction_eval(resume: str, jd: str, total: int = 8) -> dict:
     )
     result = evaluate_prediction(predicted)
     result["predicted_questions"] = predicted
+    # 记录到 Eval 历史（用于展示进化趋势）
+    try:
+        record_eval(result, position=jd, note=note)
+    except Exception as e:
+        print(f"  ⚠️ Eval历史记录失败: {e}")
     return result
