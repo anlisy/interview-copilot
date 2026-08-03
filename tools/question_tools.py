@@ -86,7 +86,7 @@ _TYPE_TO_CATEGORY = {
 }
 
 
-def _retrieve_reference(topic_type, topic_text) -> str:
+def _retrieve_reference(topic_type, topic_text, eval_mode=False) -> str:
     """检索知识库返回参考题。
     - 八股/算法/实习类：检索对应分类知识
     - 所有类型：额外检索面经（真实被问过的题）
@@ -96,8 +96,9 @@ def _retrieve_reference(topic_type, topic_text) -> str:
         category = _TYPE_TO_CATEGORY.get(topic_type)
         if category:
             refs += search_knowledge(topic_text, category=category, top_k=2)
-        # 所有题型都检索面经，参考"真实会怎么问"
-        refs += search_knowledge(topic_text, category="面经", top_k=1)
+        # 所有题型都检索面经（eval模式除外，避免看着答案出题作弊）
+        if not eval_mode:
+            refs += search_knowledge(topic_text, category="面经", top_k=1)
     except Exception as e:
         print(f"  ⚠️ 知识库检索失败({type(e).__name__})，降级为无参考")
         return ""
@@ -108,12 +109,12 @@ def _retrieve_reference(topic_type, topic_text) -> str:
     return "\n".join(lines)
 
 
-def _write_questions(resume, topics, model_id=None) -> list:
+def _write_questions(resume, topics, model_id=None, eval_mode=False) -> list:
     # 为每个考点拼上检索到的参考题（八股/算法类才检索）
     topic_lines = []
     for t in topics:
         line = f'- [{t.get("type")}] {t.get("topic")}'
-        ref = _retrieve_reference(t.get("type"), t.get("topic"))
+        ref = _retrieve_reference(t.get("type"), t.get("topic"), eval_mode=eval_mode)
         if ref:
             line += f'\n  参考真实题库（可基于此出题或改编）：\n{ref}'
         topic_lines.append(line)
@@ -128,7 +129,7 @@ def _write_questions(resume, topics, model_id=None) -> list:
 
 
 # ---------- 主入口 ----------
-def generate_questions(resume: str, jd: str, total: int, type_ratio: dict, model_id: str = None) -> list:
+def generate_questions(resume: str, jd: str, total: int, type_ratio: dict, model_id: str = None, eval_mode: bool = False) -> list:
     # 第一步：规划
     topics = _plan_topics(resume, jd, total, type_ratio, model_id)
     if not topics:
@@ -137,7 +138,7 @@ def generate_questions(resume: str, jd: str, total: int, type_ratio: dict, model
           + " | ".join(t.get("topic", "?") for t in topics))
 
     # 第二步：出题
-    questions = _write_questions(resume, topics, model_id)
+    questions = _write_questions(resume, topics, model_id, eval_mode=eval_mode)
     if not questions:
         raise ValueError("出题失败：出题阶段返回空")
 

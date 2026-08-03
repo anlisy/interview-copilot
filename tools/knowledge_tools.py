@@ -83,10 +83,17 @@ def import_markdown(md_path: Path, category: str, q_level: int = 4):
 
 
 def search_knowledge(query: str, category: str = None, top_k: int = 3) -> list:
+    """检索知识。返回含相似度分数。
+    similarity = 1 - cosine_distance，范围[0,1]，越大越相似。"""
     col = _get_collection()
     query_emb = embed_one(query)
     where = {"category": category} if category else None
     res = col.query(query_embeddings=[query_emb], n_results=top_k, where=where)
     docs = res.get("documents", [[]])[0]
     metas = res.get("metadatas", [[]])[0]
-    return [{"document": d, "metadata": m} for d, m in zip(docs, metas)]
+    dists = res.get("distances", [[]])[0]
+    out = []
+    for i, (d, m) in enumerate(zip(docs, metas)):
+        dist = dists[i] if i < len(dists) else 1.0
+        out.append({"document": d, "metadata": m, "similarity": round(1 - dist, 4)})
+    return out

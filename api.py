@@ -179,3 +179,29 @@ def api_answer2(req: Answer2Req):
         followup_reason=reason,
         next_followup_count=next_count,
     )
+
+
+# ---------- L3-c: 预测命中率评估 ----------
+class EvalReq(BaseModel):
+    resume: str
+    jd: str
+    total: int = 8
+
+
+class EvalResp(BaseModel):
+    hit_rate: float
+    total: int
+    hits: int
+    threshold: float
+    details: list
+
+
+@app.post("/api/interview/eval-prediction", response_model=EvalResp)
+def api_eval_prediction(req: EvalReq):
+    """评估系统对真实面经的预测命中率（eval模式出题，不作弊）。"""
+    from tools.eval_tools import run_prediction_eval
+    r = run_prediction_eval(req.resume, req.jd, req.total)
+    return EvalResp(
+        hit_rate=r["hit_rate"], total=r["total"], hits=r["hits"],
+        threshold=r["threshold"], details=r["details"],
+    )
