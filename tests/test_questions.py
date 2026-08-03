@@ -37,3 +37,17 @@ def test_dedup_skips_empty():
     ]
     result = _dedup(questions, "question")
     assert len(result) == 1
+
+
+def test_filter_valid_types():
+    """题型校验harness：丢弃非法题型，保留合法的"""
+    from tools.question_tools import _filter_valid_types
+    questions = [
+        {"type": "Java八股", "question": "合法1"},
+        {"type": "数据分析", "question": "非法应丢"},
+        {"type": "项目追问", "question": "合法2"},
+        {"type": "xxx乱填", "question": "非法应丢"},
+    ]
+    result = _filter_valid_types(questions)
+    assert len(result) == 2
+    assert all(q["type"] in {"Java八股", "项目追问"} for q in result)

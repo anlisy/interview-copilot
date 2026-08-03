@@ -1,6 +1,9 @@
 import json
 from difflib import SequenceMatcher
 from core.llm import generate_with_retry
+from core.models import QType
+
+_VALID_TYPES = {t.value for t in QType}  # 合法题型枚举
 from tools.knowledge_tools import search_knowledge
 from core.config import ROOT
 
@@ -48,6 +51,17 @@ def _safe_json_load(text: str):
 # ---------- 兜底去重（万一规划阶段也撞车）----------
 def _is_duplicate(q1: str, q2: str) -> bool:
     return SequenceMatcher(None, q1, q2).ratio() > 0.55
+
+
+def _filter_valid_types(questions: list) -> list:
+    """harness: 过滤 type 不在合法枚举里的题（约束结构性错误）。"""
+    valid = []
+    for q in questions:
+        if q.get("type") in _VALID_TYPES:
+            valid.append(q)
+        else:
+            print(f"  ⚠️ 丢弃非法题型: {q.get('type')} - {q.get('question','')[:20]}")
+    return valid
 
 
 def _dedup(items: list, key: str) -> list:
@@ -125,6 +139,7 @@ def _write_questions(resume, topics, model_id=None, eval_mode=False) -> list:
     )
     questions = _safe_json_load(generate_with_retry(prompt, model_id=model_id)) or []
     questions = _dedup(questions, "question")
+    questions = _filter_valid_types(questions)   # harness: 题型合法性校验
     return questions
 
 
