@@ -53,3 +53,27 @@ def test_llm_exception_no_followup():
                             {"total": 3.0, "accuracy": 3, "completeness": 3,
                              "depth": 3, "clarity": 3, "comment": ""})
         assert r["need_followup"] is False
+
+
+def test_followup_round_passed_to_prompt():
+    """5层链：followup_count 应转成 followup_round 传进 prompt"""
+    from unittest.mock import patch, MagicMock
+    import tools.followup_tools as ft
+    captured = {}
+    real_load = ft._load_prompt
+    def spy_load(name):
+        tpl = real_load(name)
+        orig_format = tpl.format
+        def fmt(**kw):
+            captured.update(kw)
+            return orig_format(**kw)
+        m = MagicMock()
+        m.format = fmt
+        return m
+    with patch.object(ft, "_load_prompt", spy_load), \
+         patch.object(ft, "generate_with_retry",
+                      return_value='{"need_followup":false,"reason":"x","followup_question":null}'):
+        ft.decide_followup("q", "a",
+                          {"total":3,"accuracy":4,"completeness":2,"depth":3,"clarity":3,"comment":""},
+                          followup_count=1)
+    assert captured.get("followup_round") == 2   # count=1 → round=2

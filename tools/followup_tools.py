@@ -16,7 +16,8 @@ def decide_followup(
     question: str,
     answer: str,
     score: dict,
-    model_id: str = None
+    model_id: str = None,
+    followup_count: int = 0
 ) -> dict:
     """
     判断是否要追问 + 生成追问问题。
@@ -46,7 +47,8 @@ def decide_followup(
             completeness=score.get("completeness", 0),
             depth=score.get("depth", 0),
             clarity=score.get("clarity", 0),
-            comment=score.get("comment", "")
+            comment=score.get("comment", ""),
+            followup_round=followup_count + 1
         )
         
         text = generate_with_retry(prompt, model_id=model_id).strip()

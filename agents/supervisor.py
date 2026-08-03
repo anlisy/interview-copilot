@@ -54,7 +54,7 @@ class Supervisor:
         """
         if followup_count >= max_followup:
             return False, None, f"已达追问上限({max_followup})"
-        decision = self.interviewer.decide_followup(question, answer, score)
+        decision = self.interviewer.decide_followup(question, answer, score, followup_count)
         return (decision["need_followup"],
                 decision.get("followup_question"),
                 decision.get("reason", ""))
