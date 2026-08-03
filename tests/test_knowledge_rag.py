@@ -34,10 +34,20 @@ def test_type_to_category_mapping():
     assert _TYPE_TO_CATEGORY["项目追问"] is None
 
 
-def test_retrieve_reference_project_no_search():
-    """项目类考点不检索，直接返回空"""
-    from tools.question_tools import _retrieve_reference
-    assert _retrieve_reference("项目追问", "任意") == ""
+def test_retrieve_reference_project_skips_category_but_searches_jingjing():
+    """项目类考点不检索分类知识库(八股等)，但会检索面经。
+    用 mock 隔离，验证:项目类不查category知识库，只查面经。"""
+    from unittest.mock import patch
+    import tools.question_tools as qt
+    calls = []
+    def fake_search(query, category=None, top_k=3):
+        calls.append(category)
+        return []
+    with patch.object(qt, "search_knowledge", side_effect=fake_search):
+        qt._retrieve_reference("项目追问", "任意")
+    # 项目类:不查八股/算法(category映射是None)，但查了面经
+    assert "面经" in calls
+    assert "八股" not in calls
 
 
 def test_retrieve_reference_search_failure_degrades():

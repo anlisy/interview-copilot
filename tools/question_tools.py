@@ -87,21 +87,25 @@ _TYPE_TO_CATEGORY = {
 
 
 def _retrieve_reference(topic_type, topic_text) -> str:
-    """为八股/算法类考点检索知识库，返回参考题文本。
-    RAG 是增强项：检索为空或报错都降级为无参考，不影响出题。"""
-    category = _TYPE_TO_CATEGORY.get(topic_type)
-    if not category:
-        return ""
+    """检索知识库返回参考题。
+    - 八股/算法/实习类：检索对应分类知识
+    - 所有类型：额外检索面经（真实被问过的题）
+    RAG 是增强项：检索空或报错都降级，不影响出题。"""
+    refs = []
     try:
-        refs = search_knowledge(topic_text, category=category, top_k=2)
-        if not refs:
-            return ""
-        lines = [f"  · {r['metadata'].get('question', '')}: {r['document'][:120]}"
-                 for r in refs]
-        return "\n".join(lines)
+        category = _TYPE_TO_CATEGORY.get(topic_type)
+        if category:
+            refs += search_knowledge(topic_text, category=category, top_k=2)
+        # 所有题型都检索面经，参考"真实会怎么问"
+        refs += search_knowledge(topic_text, category="面经", top_k=1)
     except Exception as e:
         print(f"  ⚠️ 知识库检索失败({type(e).__name__})，降级为无参考")
         return ""
+    if not refs:
+        return ""
+    lines = [f"  · {r['metadata'].get('question', '')}: {r['document'][:120]}"
+             for r in refs]
+    return "\n".join(lines)
 
 
 def _write_questions(resume, topics, model_id=None) -> list:

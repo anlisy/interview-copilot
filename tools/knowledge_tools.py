@@ -23,7 +23,10 @@ def _clean(text: str) -> str:
     return text.strip()
 
 
-def parse_markdown(md_path: Path) -> list:
+def parse_markdown(md_path: Path, q_level: int = 4) -> list:
+    """按指定层级标题切分成问答块。q_level: 问题用几级标题(八股4=####，面经3=###)。"""
+    q_prefix = "#" * q_level + " "
+    topic_prefix = "#" * (q_level - 1) + " "
     lines = md_path.read_text(encoding="utf-8").split("\n")
     blocks = []
     cur_topic = ""
@@ -41,16 +44,16 @@ def parse_markdown(md_path: Path) -> list:
                 })
 
     for line in lines:
-        if line.startswith("#### "):
+        if line.startswith(q_prefix):
             flush()
-            cur_q = line[5:].strip()
+            cur_q = line[len(q_prefix):].strip()
             cur_body = []
-        elif line.startswith("### "):
+        elif topic_prefix != "# " and line.startswith(topic_prefix):
             flush()
-            cur_topic = line[4:].strip()
+            cur_topic = line[len(topic_prefix):].strip()
             cur_q = None
             cur_body = []
-        elif line.startswith("# "):
+        elif line.startswith("# ") and not line.startswith("## "):
             continue
         else:
             if cur_q:
@@ -59,8 +62,8 @@ def parse_markdown(md_path: Path) -> list:
     return blocks
 
 
-def import_markdown(md_path: Path, category: str):
-    blocks = parse_markdown(md_path)
+def import_markdown(md_path: Path, category: str, q_level: int = 4):
+    blocks = parse_markdown(md_path, q_level=q_level)
     if not blocks:
         print(f"⚠️ {md_path.name} 没解析出内容")
         return 0
