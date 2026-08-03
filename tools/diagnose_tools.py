@@ -19,7 +19,14 @@ def diagnose_resume(resume: str, jd: str, model_id: str = None) -> dict:
             text = "\n".join(lines[1:-1]) if lines[-1].strip() == "```" else "\n".join(lines[1:])
             if text.lstrip().startswith("json"):
                 text = text.lstrip()[4:]
-        result = json.loads(text.strip())
+        # harness: 健壮提取JSON（模型可能包裹解释文字）
+        text = text.strip()
+        if not text.startswith("{"):
+            start = text.find("{")
+            end = text.rfind("}")
+            if start != -1 and end != -1:
+                text = text[start:end+1]
+        result = json.loads(text)
         return {
             "highlights": result.get("highlights", []),
             "risks": result.get("risks", []),
