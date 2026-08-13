@@ -19,3 +19,4 @@ data/knowledge/
 *.bak*
 *.bak*
 data/eval_history.json
+data/预测面试题_*.md

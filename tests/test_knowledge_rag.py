@@ -28,10 +28,11 @@ def test_parse_markdown_splits_by_h4(tmp_path):
 
 
 def test_type_to_category_mapping():
-    """题型→分类映射：八股→八股，项目→None"""
+    """题型→分类映射：八股→八股库，项目→项目库，实习→实习库"""
     from tools.question_tools import _TYPE_TO_CATEGORY
     assert _TYPE_TO_CATEGORY["Java八股"] == "八股"
-    assert _TYPE_TO_CATEGORY["项目追问"] is None
+    assert _TYPE_TO_CATEGORY["项目追问"] == "项目"
+    assert _TYPE_TO_CATEGORY["实习追问"] == "实习"
 
 
 def test_retrieve_reference_project_skips_category_but_searches_jingjing():

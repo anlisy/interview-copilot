@@ -49,6 +49,34 @@ def _safe_json_load(text: str):
 
 
 # ---------- 兜底去重（万一规划阶段也撞车）----------
+def _semantic_dedup(questions: list, threshold: float = 0.88) -> list:
+    """语义去重：用 embedding 相似度去掉意思雷同的题（字面去重的补充）。
+    失败则降级为只做字面去重，不中断。"""
+    if len(questions) <= 1:
+        return questions
+    try:
+        from core.embedding import embed_texts
+        texts = [q.get("question", "") for q in questions]
+        embs = embed_texts(texts)
+        kept, kept_embs = [], []
+        import math
+        def cos(a, b):
+            dot = sum(x*y for x, y in zip(a, b))
+            na = math.sqrt(sum(x*x for x in a))
+            nb = math.sqrt(sum(x*x for x in b))
+            return dot/(na*nb) if na and nb else 0
+        for q, e in zip(questions, embs):
+            if any(cos(e, ke) > threshold for ke in kept_embs):
+                print(f"  🔁 语义去重丢弃: {q.get('question','')[:25]}")
+                continue
+            kept.append(q)
+            kept_embs.append(e)
+        return kept
+    except Exception as e:
+        print(f"  ⚠️ 语义去重失败({type(e).__name__})，降级字面去重")
+        return _dedup(questions, "question")
+
+
 def _is_duplicate(q1: str, q2: str) -> bool:
     return SequenceMatcher(None, q1, q2).ratio() > 0.55
 
@@ -95,7 +123,7 @@ _TYPE_TO_CATEGORY = {
     "AI应用八股": "八股",
     "编程题": "算法",
     "实习追问": "实习",
-    "项目追问": None,
+    "项目追问": "项目",
     "行为问题": None,
 }
 
@@ -158,4 +186,36 @@ def generate_questions(resume: str, jd: str, total: int, type_ratio: dict, model
         raise ValueError("出题失败：出题阶段返回空")
 
     print(f"  ✅ 最终出题 {len(questions)} 道（去重后）")
+    return questions[:total]
+
+
+# ---------- predict 专用：精确题型数量出题（绕过百分比转换）----------
+def _plan_topics_exact(resume, jd, count_distribution: str, total: int, model_id=None) -> list:
+    """按精确题型数量分布规划考点。count_distribution 如 '- 实习追问: 10题\n- 项目追问: 10题'"""
+    prompt = _load_prompt("topic_planner.txt").format(
+        resume=resume, jd=jd, n=total, type_distribution=count_distribution,
+    )
+    topics = _safe_json_load(generate_with_retry(prompt, model_id=model_id)) or []
+    topics = _dedup(topics, "topic")
+    return topics[:total]
+
+
+def generate_questions_by_counts(resume: str, jd: str, type_counts: dict, model_id: str = None) -> list:
+    """predict 专用：按精确题型数量出题。
+    type_counts 如 {'实习追问': 10, '项目追问': 10, 'Java八股': 1}。
+    """
+    total = sum(type_counts.values())
+    if total == 0:
+        return []
+    # 直接构造精确数量分布（不转百分比）
+    count_distribution = "\n".join(
+        f"- {t}: {n}题" for t, n in type_counts.items() if n > 0
+    )
+    topics = _plan_topics_exact(resume, jd, count_distribution, total, model_id)
+    if not topics:
+        raise ValueError("出题失败：考察点规划返回空")
+    print(f"  📋 已规划 {len(topics)} 个考察点")
+    questions = _write_questions(resume, topics, model_id)
+    questions = _semantic_dedup(questions)   # 语义去重
+    print(f"  ✅ 最终出题 {len(questions)} 道（语义去重后）")
     return questions[:total]
