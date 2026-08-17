@@ -20,3 +20,4 @@ data/knowledge/
 *.bak*
 data/eval_history.json
 data/预测面试题_*.md
+data/参考答案_*.md
