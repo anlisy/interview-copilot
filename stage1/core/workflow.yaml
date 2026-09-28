@@ -1,0 +1,89 @@
+version: 2
+name: interview-copilot
+
+limits:
+  max_steps: 60
+  max_followup: 2
+  token_budget: 24000
+  cost_budget_usd: 1.0
+  timeout_seconds: 30
+
+stages:
+  INIT:
+    allowed_agents: [interviewer]
+    allowed_actions: [diagnose]
+    allowed_tools: [resume_parser, jd_parser]
+    next_stages: [DIAGNOSIS]
+  DIAGNOSIS:
+    allowed_agents: [interviewer]
+    allowed_actions: [generate]
+    allowed_tools: [resume_parser, jd_parser, interview_retrieval]
+    next_stages: [ASKING]
+  ASKING:
+    allowed_agents: [scorer]
+    allowed_actions: [score]
+    allowed_tools: [rubric_lookup]
+    next_stages: [SCORING]
+  SCORING:
+    allowed_agents: [interviewer]
+    allowed_actions: [followup, next_question, review]
+    allowed_tools: [interview_retrieval, memory_search]
+    next_stages: [FOLLOWUP, ASKING, REVIEWING]
+  FOLLOWUP:
+    allowed_agents: [scorer]
+    allowed_actions: [score]
+    allowed_tools: [rubric_lookup]
+    next_stages: [SCORING]
+  REVIEWING:
+    allowed_agents: [reviewer]
+    allowed_actions: [review]
+    allowed_tools: [memory_search, interview_retrieval]
+    next_stages: [FINISHED]
+  FINISHED:
+    allowed_agents: []
+    allowed_actions: []
+    allowed_tools: []
+    next_stages: []
+
+tools:
+  resume_parser: {timeout_seconds: 10}
+  jd_parser: {timeout_seconds: 10}
+  interview_retrieval: {timeout_seconds: 8}
+  rubric_lookup: {timeout_seconds: 5}
+  memory_search: {timeout_seconds: 5}
+  interview_ground_truth: {timeout_seconds: 5}
+  nowcoder_search: {timeout_seconds: 5}
+
+actions:
+  diagnose:
+    timeout_seconds: 30
+    result_schema:
+      type: object
+  generate:
+    timeout_seconds: 30
+    result_schema:
+      type: array
+  score:
+    timeout_seconds: 30
+    result_schema:
+      type: object
+      required: [total]
+      properties:
+        total: {type: number}
+  followup:
+    timeout_seconds: 30
+    result_schema:
+      type: object
+  next_question:
+    timeout_seconds: 30
+    result_schema:
+      type: object
+  review:
+    timeout_seconds: 30
+    result_schema:
+      type: string
+
+eval_policy:
+  deny_tools:
+    - interview_ground_truth
+    - nowcoder_search
