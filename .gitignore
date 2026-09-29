@@ -22,3 +22,5 @@ data/eval_history.json
 data/预测面试题_*.md
 data/参考答案_*.md
 README.md.bak
+.agent_memory/
+storage/traces/
