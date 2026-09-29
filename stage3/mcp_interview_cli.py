@@ -23,6 +23,7 @@ def main() -> int:
     parser.add_argument("--category", default="", help="local_rag 分类；留空表示不限定分类")
     parser.add_argument("--company", default="", help="nowcoder_search 公司过滤条件")
     parser.add_argument("--role", default="", help="nowcoder_search 岗位过滤条件")
+    parser.add_argument("--session-id", default="", help="memory_search 的会话过滤；留空表示全局长期记忆")
     parser.add_argument("--profile", action="store_true", help="打印 Host/MCP 分段耗时")
     args = parser.parse_args()
     if args.profile:
@@ -58,7 +59,7 @@ def main() -> int:
             elif args.tool == "local_rag":
                 arguments = {"query": args.query, "category": args.category, "limit": 3}
             elif args.tool == "memory_search":
-                arguments = {"query": args.query, "limit": 3}
+                arguments = {"query": args.query, "limit": 3, "session_id": args.session_id}
             else:
                 arguments = {"query": args.query, "limit": 3}
             import time

@@ -112,10 +112,14 @@ if mcp is not None:
         return output
 
     @mcp.tool(name="memory_search")
-    def memory_search(query: str, limit: int = 5) -> dict[str, Any]:
-        started = _ms(); _profile(f"tool_start name=memory_search query_len={len(query)} limit={limit}")
+    def memory_search(query: str, limit: int = 5, session_id: str = "") -> dict[str, Any]:
+        started = _ms(); _profile(f"tool_start name=memory_search query_len={len(query)} limit={limit} session_id={session_id!r}")
         limit = max(1, min(int(limit), 10))
-        items, profile = _run_legacy_worker("memory_search", {"query": query, "limit": limit}, timeout_sec=8.0)
+        items, profile = _run_legacy_worker(
+            "memory_search",
+            {"query": query, "limit": limit, "session_id": session_id},
+            timeout_sec=8.0,
+        )
         tool_elapsed = _ms() - started
         _profile(f"tool_done name=memory_search elapsed_ms={tool_elapsed} result_count={len(items) if hasattr(items,'__len__') else 'NA'} profile={profile}")
         output = {"items": items}

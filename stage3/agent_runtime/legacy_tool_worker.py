@@ -10,6 +10,7 @@ import argparse
 import io
 import json
 import sys
+import os
 import time
 from contextlib import redirect_stdout
 from typing import Any
@@ -43,10 +44,16 @@ def _call(tool: str, args: dict[str, Any]) -> tuple[Any, dict[str, int]]:
         return result, timings
     if tool == "memory_search":
         t0 = _now_ms()
-        from memory.memory_store import MemoryStore
+        from stage4.memory import MemoryStore
         timings["import_ms"] = _now_ms() - t0
+        root = os.getenv("AGENT_MEMORY_ROOT", ".agent_memory").strip() or ".agent_memory"
+        session_id = str(args.get("session_id", "")).strip() or None
         t1 = _now_ms()
-        result = MemoryStore().search(args.get("query", ""), limit=int(args.get("limit", 5)))
+        result = MemoryStore(root=root).recall(
+            args.get("query", ""),
+            limit=int(args.get("limit", 5)),
+            session_id=session_id,
+        )
         timings["call_ms"] = _now_ms() - t1
         return result, timings
     raise ValueError(f"unsupported legacy tool: {tool}")
