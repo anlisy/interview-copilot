@@ -1,0 +1,16 @@
+{
+  "version": "stage6-decision-dataset-v1",
+  "seed": 20260929,
+  "counts": {
+    "skill": 30,
+    "tool": 30,
+    "intent": 50
+  },
+  "split": {
+    "validation_ratio": 0.5,
+    "strategy": "stratified_by_task_type_and_expected"
+  },
+  "status": "synthetic_template",
+  "requires_human_review": true,
+  "note": "Generated cases are engineering benchmark templates. They must be human-reviewed before being used as final Ground Truth claims."
+}

@@ -1,0 +1,1 @@
+# No extra dependency required for JEV. Optional: pip install typesafe-sdk

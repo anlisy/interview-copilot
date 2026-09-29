@@ -1,0 +1,33 @@
+{
+  "policy_type": "stage6_threshold_policy",
+  "version": 2,
+  "engine": "jev",
+  "fallback_engine": "glm",
+  "selected_on": "validation",
+  "dataset": "stage6\\datasets\\formal\\decision_validation.jsonl",
+  "dataset_sha256": "4d4ba0bc76fdb56bd288e2b6258417fb4dd12a653cc54e9d7a8c3354575f5708",
+  "policy": {
+    "auto_threshold": 0.5,
+    "review_threshold": 0.3
+  },
+  "selection": {
+    "threshold_candidates": [
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9,
+      0.95
+    ],
+    "candidate_source": "actual_sweep",
+    "min_auto_accuracy": 0.95,
+    "min_auto_coverage": 0.6,
+    "review_gap": 0.2
+  },
+  "calibration_snapshot": {
+    "cases": 55,
+    "auto_accuracy": 1.0,
+    "auto_coverage": 0.8909
+  },
+  "warning": "Frozen policy. Do not recalibrate or edit for the Test Set."
+}

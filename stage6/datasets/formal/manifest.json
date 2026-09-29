@@ -1,0 +1,102 @@
+{
+  "dataset_version": "stage6-decision-dataset-v1-reviewed-candidate",
+  "seed": 20260929,
+  "status": "assistant_reviewed_candidate",
+  "requires_human_review": true,
+  "note": "Generated cases are engineering benchmark templates. They must be human-reviewed before being used as final Ground Truth claims.",
+  "generator": "stage6.datasets.generate_formal_dataset",
+  "counts": {
+    "all": {
+      "total": 110,
+      "task_type_counts": {
+        "intent": 50,
+        "skill": 30,
+        "tool": 30
+      },
+      "expected_counts_by_task": {
+        "intent": {
+          "different_intent": 25,
+          "same_intent": 25
+        },
+        "skill": {
+          "answer-evaluation": 5,
+          "difficulty-control": 5,
+          "interview-review": 5,
+          "question-design": 5,
+          "question-followup": 5,
+          "question-intent": 5
+        },
+        "tool": {
+          "local_rag": 8,
+          "memory_search": 8,
+          "no_tool": 7,
+          "nowcoder_search": 7
+        }
+      }
+    },
+    "validation": {
+      "total": 55,
+      "task_type_counts": {
+        "intent": 25,
+        "skill": 15,
+        "tool": 15
+      },
+      "expected_counts_by_task": {
+        "intent": {
+          "different_intent": 12,
+          "same_intent": 13
+        },
+        "skill": {
+          "answer-evaluation": 2,
+          "difficulty-control": 2,
+          "interview-review": 2,
+          "question-design": 3,
+          "question-followup": 3,
+          "question-intent": 3
+        },
+        "tool": {
+          "local_rag": 4,
+          "memory_search": 4,
+          "no_tool": 3,
+          "nowcoder_search": 4
+        }
+      }
+    },
+    "test": {
+      "total": 55,
+      "task_type_counts": {
+        "intent": 25,
+        "skill": 15,
+        "tool": 15
+      },
+      "expected_counts_by_task": {
+        "intent": {
+          "different_intent": 13,
+          "same_intent": 12
+        },
+        "skill": {
+          "answer-evaluation": 3,
+          "difficulty-control": 3,
+          "interview-review": 3,
+          "question-design": 2,
+          "question-followup": 2,
+          "question-intent": 2
+        },
+        "tool": {
+          "local_rag": 4,
+          "memory_search": 4,
+          "no_tool": 4,
+          "nowcoder_search": 3
+        }
+      }
+    }
+  },
+  "review": {
+    "reviewer_type": "assistant_semantic_review",
+    "records_reviewed": 220,
+    "label_changes": [],
+    "hard_cases_flagged": 16,
+    "human_signoff_required": true,
+    "note": "逐条语义复核未发现需要改动 expected 的明显错标；该复核不是人类签字，不能把本数据集描述为 final human-verified Ground Truth。"
+  }
+}
