@@ -1,0 +1,14 @@
+
+- Add regression test for Interview MCP CLI boundary.
+- Interview MCP CLI exposes only interviewer/scorer/reviewer with local_rag/nowcoder_search/memory_search.
+- Keep central permissions and Eval-only ground_truth_search outside the normal Interview MCP CLI.
+- Preserve v8 MCPToolSession context-manager lifecycle handling.
+- local_rag category defaults to empty string and is converted to None for existing knowledge_tools.
+- nowcoder_search company/role default to empty strings.
+All files under stage3/ are source/docs/config/tests; generated Python bytecode caches are intentionally excluded.
+Baseline: Stage 3 v8 source tree
+Merged changes:
+Source bytes (excluding __pycache__ / .pyc): 77761
+Source file count: 22
+Stage 3 source manifest
+stage3/agent_runtime/legacy_tool_worker.py

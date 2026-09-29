@@ -1,0 +1,5 @@
+# Known-compatible MCP stack for smolagents 1.26.0.
+# MCP 2.x renamed streamablehttp_client, while the current mcpadapt
+# dependency used by smolagents 1.26.0 still imports the v1 name.
+smolagents[mcp]==1.26.0
+mcp>=1.28.1,<2
