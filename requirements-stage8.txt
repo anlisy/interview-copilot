@@ -1,0 +1,3 @@
+# Stage8 adds no new runtime dependency; it reuses Stage2~Stage7 dependencies.
+# pytest is included for the stage-level regression suite.
+pytest>=8.0
